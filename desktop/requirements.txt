@@ -1,0 +1,7 @@
+PySide6>=6.6
+playwright>=1.49
+pandas>=2.2
+openpyxl>=3.1
+keyring>=24
+pillow>=10
+pyinstaller>=6.6

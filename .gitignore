@@ -1,0 +1,34 @@
+# --- build output (rebuilt from source; the .exe ships on a Release) ---
+dist/
+build/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# --- browser profiles: THESE HOLD LIVE LOGIN SESSIONS. never commit ---
+el_profile/
+safilo_profile/
+
+# --- local caches ---
+el_catalog_index.json
+safilo_catalog_index.json
+
+# --- discovery/diagnostic dumps: contain logged-in page data (account name,
+#     e-mail, internal IDs). kept local only ---
+discovery_output/
+discovery_output2/
+discovery_safilo_out/
+discovery_safilo_out2/
+safilo_verify_out/
+safilo_diag_out/
+
+# --- product data / downloaded images / scratch ---
+*.xlsx
+*.xlsm
+*.csv
+*.zip
+*.jpg
+*.jpeg
+*.webp
+*.png
+!desktop/app_icon.png
