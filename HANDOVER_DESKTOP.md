@@ -62,10 +62,24 @@ Output: `dist\GlassesImageDownloader.exe`. Unsigned, so SmartScreen warns once.
 
 ## Shipping an update
 
+GitHub Actions does the build (`.github/workflows/build-desktop.yml`):
+
 1. Bump `desktop/version.py`
-2. Rebuild with the spec
-3. Scan the .exe for `ghp_`, `github_pat`, `postgresql://`, `sk-ant`
-4. Tag `desktop-v<x.y.z>` and attach the .exe to a GitHub Release
+2. Commit and push
+3. `git tag desktop-v<x.y.z> && git push origin desktop-v<x.y.z>`
+
+The workflow then checks the tag matches `version.py`, runs the headless tests
+and `--selftest`, builds the .exe, scans it for `ghp_` / `github_pat` /
+`postgresql://` / `sk-ant`, and attaches it to the Release for that tag.
+Installed copies see the new tag and self-update.
+
+Run the workflow manually (Actions → Build desktop .exe → Run workflow) to get a
+build as a downloadable artifact without publishing a Release.
+
+To build locally instead:
+`"C:\gv\Scripts\pyinstaller.exe" desktop\GlassesImageDownloader.spec --noconfirm`
+— **close the app first**: PyInstaller cannot replace a running .exe and still
+exits 0, so the build silently keeps the old binary. Check the timestamp.
 
 The repo (`bgal-png/Glasses-Image-Downloader`) is private, so the in-app update
 check needs a fine-grained token with read access to Contents and Releases,
