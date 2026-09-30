@@ -8,7 +8,7 @@ self-update. The repo is private, so the check needs a token in Settings.
 
 APP_NAME = "Glasses Image Downloader"
 ORG_NAME = "Alensa"
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 
 RELEASE_REPO = "bgal-png/Glasses-Image-Downloader"
 RELEASE_TAG_PREFIX = "desktop-v"

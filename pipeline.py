@@ -81,7 +81,8 @@ def run_luxottica(records, todo, progress=None):
                 part_number, colour, variants = luxottica.probe_model(ctx, name)
             if not variants:
                 continue
-            hit = luxottica.match_color(variants, colour)
+            hit = (luxottica.match_color(variants, colour)
+                   or luxottica.match_color_any(variants, name))
             if hit:
                 dl = download_url_bytes(hit["image"])
                 if dl:

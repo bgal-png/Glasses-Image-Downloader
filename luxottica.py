@@ -43,6 +43,22 @@ def match_model(name, index):
     }
 
 
+def match_color_any(variants, name):
+    """Match a variant against ANY token in the name, longest token first.
+
+    The colour code does not always sit right after the model code ("MARC
+    496/SHINY 807/IR" puts a word in between), so when the positional guess
+    misses, every token gets a try before we fall back to asking the user.
+    """
+    tokens = sorted({normalize(t) for t in _SPLIT.split(name or "") if t},
+                    key=len, reverse=True)
+    codes = {normalize(v["colorCode"]): v for v in variants if v.get("colorCode")}
+    for token in tokens:
+        if token and token in codes:
+            return codes[token]
+    return None
+
+
 def match_color(variants, color_guess):
     """Return the variant whose colorCode equals color_guess (normalized), else None."""
     cg = normalize(color_guess)
@@ -151,31 +167,64 @@ def get_variants(ctx, part_number):
     return out
 
 
-# A Luxottica style code as it appears in a product name: 2-3 letters then
-# digits, sometimes a trailing letter — "BE1398", "EA3285U", "RB2140", "OO9431".
-_MODEL_TOKEN = re.compile(r"^[A-Z]{2,3}\d{3,5}[A-Z0-9]{0,3}$")
+# A Luxottica style code as it appears in a product name. Two shapes occur:
+# joined ("BE1398", "EA3285U", "OO9431") and split ("MU 01YV", "MARC 496"),
+# and the code is often glued to the colour by "/" or "-" ("RB2140/901").
+_CODE_JOINED = re.compile(r"^[A-Z]{2,4}\d{2,5}[A-Z0-9]{0,3}$")
+_CODE_HEAD = re.compile(r"^[A-Z]{2,5}$")
+_CODE_TAIL = re.compile(r"^\d{2,5}[A-Z0-9]{0,3}$")
+_SPLIT = re.compile(r"[\s/\-_,;()]+")
+
+# Brand words that look like a code head but never are, so we don't waste a
+# lookup on "RAY BAN 2140" style noise.
+_NOT_A_HEAD = {"THE", "AND", "NEW", "SUN", "OPT", "MAN", "HER"}
+
+MAX_PROBES = 8
+
+
+def model_candidates(name):
+    """Ordered (partNumber, colourGuess) guesses for a product name.
+
+    The catalogue writes models with a leading zero and sometimes a space
+    ("0MU 01YV", "0BE1398"), while the names here omit the zero and may glue
+    the colour on with a slash. So each shape is expanded into the spellings
+    the variants endpoint actually accepts, most likely first.
+    """
+    pieces = [p for p in _SPLIT.split((name or "").upper()) if p]
+    out, seen = [], set()
+
+    def add(code, colour):
+        for candidate in ("0" + code, code):
+            if candidate not in seen:
+                seen.add(candidate)
+                out.append((candidate, colour))
+
+    for i, piece in enumerate(pieces):
+        nxt = pieces[i + 1] if i + 1 < len(pieces) else ""
+        if _CODE_JOINED.match(piece) and any(c.isdigit() for c in piece):
+            add(piece, normalize(nxt))
+        elif (_CODE_HEAD.match(piece) and piece not in _NOT_A_HEAD
+              and _CODE_TAIL.match(nxt)):
+            after = normalize(pieces[i + 2]) if i + 2 < len(pieces) else ""
+            add(f"{piece} {nxt}", after)   # "0MU 01YV" — the catalogue spelling
+            add(f"{piece}{nxt}", after)    # "0MU01YV"  — in case it is joined
+        if len(out) >= MAX_PROBES:
+            break
+    return out[:MAX_PROBES]
 
 
 def probe_model(ctx, name):
-    """Resolve a name straight against the catalogue: (partNumber, colorGuess, variants).
+    """Resolve a name straight against the catalogue: (partNumber, colourGuess, variants).
 
     The indexed listing covers only one catalogue category, so plenty of real
     models (e.g. 0BE1398, 0EA1183) are missing from it — but the variants
-    endpoint answers for ANY partNumber. So when the index misses, take the
-    style code out of the name, try "0<CODE>", and keep it if it has variants.
-    Returns (None, "", []) when nothing resolves.
+    endpoint answers for ANY partNumber. Returns (None, "", []) when nothing
+    resolves.
     """
-    tokens = (name or "").split()
-    for i, token in enumerate(tokens):
-        code = token.upper().strip(",.;")
-        if not _MODEL_TOKEN.match(code):
-            continue
-        for candidate in ("0" + code, code):
-            variants = get_variants(ctx, candidate)
-            if variants:
-                colour = normalize(tokens[i + 1]) if i + 1 < len(tokens) else ""
-                return candidate, colour, variants
-        break  # first style-code-looking token is the model; don't keep hunting
+    for part_number, colour in model_candidates(name):
+        variants = get_variants(ctx, part_number)
+        if variants:
+            return part_number, colour, variants
     return None, "", []
 
 
