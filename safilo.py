@@ -54,7 +54,21 @@ from playwright.sync_api import sync_playwright
 from fetcher import _proactor_loop_policy
 
 BASE = "https://www.youandsafilo.com"
-SAFILO_PROFILE_DIR = str(pathlib.Path(__file__).parent / "safilo_profile")
+def _data_dir():
+    r"""Same reasoning as luxottica._data_dir: a frozen build's __file__ lives in
+    PyInstaller's temp dir, so the Safilo profile must go to %LOCALAPPDATA%."""
+    import os as _os
+    import sys as _sys
+    if getattr(_sys, "frozen", False):
+        base = _os.environ.get("LOCALAPPDATA") or _os.path.expanduser("~")
+        path = _os.path.join(base, "GlassesImageDownloader")
+    else:
+        path = _os.path.dirname(_os.path.abspath(__file__))
+    _os.makedirs(path, exist_ok=True)
+    return path
+
+
+SAFILO_PROFILE_DIR = str(pathlib.Path(_data_dir()) / "safilo_profile")
 FRAMES_CATEGORY = "0ZG7T000000PB0fWAG"
 
 

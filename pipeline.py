@@ -70,20 +70,25 @@ def run_luxottica(records, todo, progress=None):
         for n, i in enumerate(todo):
             if progress:
                 progress((n + 1) / max(len(todo), 1), f"EssilorLuxottica {n + 1}/{len(todo)}")
-            m = luxottica.match_model(records[i]["name"], index)
-            if not m:
-                continue
-            variants = luxottica.get_variants(ctx, m["partNumber"])
+            name = records[i]["name"]
+            m = luxottica.match_model(name, index)
+            if m:
+                part_number, colour = m["partNumber"], m["colorGuess"]
+                variants = luxottica.get_variants(ctx, part_number)
+            else:
+                # The index only covers one catalogue category; fall back to
+                # resolving the style code straight against the catalogue.
+                part_number, colour, variants = luxottica.probe_model(ctx, name)
             if not variants:
                 continue
-            hit = luxottica.match_color(variants, m["colorGuess"])
+            hit = luxottica.match_color(variants, colour)
             if hit:
                 dl = download_url_bytes(hit["image"])
                 if dl:
                     out[i] = {"image": dl[0], "ext": dl[1]}
             else:
                 out[i] = {"candidates": [
-                    {"label": v.get("colorCode") or m["partNumber"], "image_url": v["image"]}
+                    {"label": v.get("colorCode") or part_number, "image_url": v["image"]}
                     for v in variants
                 ]}
     return out

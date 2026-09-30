@@ -55,7 +55,9 @@ def match_color(variants, color_guess):
 
 
 import json
+import os
 import pathlib
+import sys
 import time
 import urllib.parse
 from contextlib import contextmanager
@@ -65,8 +67,27 @@ from playwright.sync_api import sync_playwright
 from fetcher import _proactor_loop_policy  # reuse Windows event-loop fix
 
 BASE = "https://my.essilorluxottica.com"
-EL_PROFILE_DIR = str(pathlib.Path(__file__).parent / "el_profile")
-INDEX_CACHE = pathlib.Path(__file__).parent / "el_catalog_index.json"
+
+
+def _data_dir():
+    r"""Where the login profile and catalogue index live.
+
+    When frozen, __file__ sits inside PyInstaller's temp extraction dir, which
+    Windows wipes on exit — the login and the ~4700-model index would be thrown
+    away on every launch (re-login + a multi-minute rebuild each run). Keep them
+    in %LOCALAPPDATA%\GlassesImageDownloader like the rest of the family.
+    """
+    if getattr(sys, "frozen", False):
+        base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+        path = os.path.join(base, "GlassesImageDownloader")
+    else:
+        path = os.path.dirname(os.path.abspath(__file__))
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+EL_PROFILE_DIR = str(pathlib.Path(_data_dir()) / "el_profile")
+INDEX_CACHE = pathlib.Path(_data_dir()) / "el_catalog_index.json"
 PLP_PATH = "/myl-hu/cs-CZ/plp/frames"
 USERCONTEXT = BASE + "/fo-bff/api/priv/v1/myl-hu/usercontext"
 LISTING = (BASE + "/fo-bff/api/priv/v1/myl-hu/cs-CZ/categories/3074457345616677185/"
@@ -128,6 +149,34 @@ def get_variants(ctx, part_number):
         color = pn.split("_")[-1] if "_" in pn else ""
         out.append({"colorCode": color, "partNumber": pn, "image": img})
     return out
+
+
+# A Luxottica style code as it appears in a product name: 2-3 letters then
+# digits, sometimes a trailing letter — "BE1398", "EA3285U", "RB2140", "OO9431".
+_MODEL_TOKEN = re.compile(r"^[A-Z]{2,3}\d{3,5}[A-Z0-9]{0,3}$")
+
+
+def probe_model(ctx, name):
+    """Resolve a name straight against the catalogue: (partNumber, colorGuess, variants).
+
+    The indexed listing covers only one catalogue category, so plenty of real
+    models (e.g. 0BE1398, 0EA1183) are missing from it — but the variants
+    endpoint answers for ANY partNumber. So when the index misses, take the
+    style code out of the name, try "0<CODE>", and keep it if it has variants.
+    Returns (None, "", []) when nothing resolves.
+    """
+    tokens = (name or "").split()
+    for i, token in enumerate(tokens):
+        code = token.upper().strip(",.;")
+        if not _MODEL_TOKEN.match(code):
+            continue
+        for candidate in ("0" + code, code):
+            variants = get_variants(ctx, candidate)
+            if variants:
+                colour = normalize(tokens[i + 1]) if i + 1 < len(tokens) else ""
+                return candidate, colour, variants
+        break  # first style-code-looking token is the model; don't keep hunting
+    return None, "", []
 
 
 def build_catalog_index(ctx, progress=None):
