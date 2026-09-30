@@ -121,7 +121,24 @@ def build_swap_script(pid: int, src: str, dst: str, log: str) -> str:
         f"  try{{ Move-Item -LiteralPath {q_src} -Destination {q_dst} -Force -ErrorAction Stop; $moved=$true }}"
         "  catch{ Start-Sleep -Milliseconds 500 } }; "
         "if($moved){ L 'replaced the exe' } else { L 'MOVE FAILED - the old version is still in place' }; "
-        f"try{{ Start-Process -FilePath {q_dst}; L 'relaunched' }}catch{{ L \"relaunch failed: $_\" }}"
+        # A one-file PyInstaller exe unpacks itself on launch. Relaunching right
+        # after moving a ~120 MB file races Windows finishing the write and the
+        # AV scanning it, and the unpack fails with "Failed to load Python DLL".
+        # So wait until the file's size stops changing and it opens for reading,
+        # then give the scanner a moment before starting it.
+        "$stable=0; $last=-1; "
+        "for($i=0;$i -lt 60 -and $stable -lt 3;$i++){ "
+        f"  try{{ $len=(Get-Item -LiteralPath {q_dst} -ErrorAction Stop).Length; "
+        f"        $fs=[IO.File]::Open({q_dst},'Open','Read','Read'); $fs.Close(); "
+        "        if($len -eq $last -and $len -gt 0){ $stable++ } else { $stable=0 }; $last=$len }"
+        "  catch{ $stable=0 }; Start-Sleep -Milliseconds 500 }; "
+        "L \"exe settled at $last bytes after $i check(s)\"; "
+        "Start-Sleep -Seconds 2; "
+        "$started=$false; "
+        "for($t=0;$t -lt 3 -and -not $started;$t++){ "
+        f"  try{{ Start-Process -FilePath {q_dst} -ErrorAction Stop; $started=$true; L \"relaunched (attempt $($t+1))\" }}"
+        "  catch{ L \"relaunch attempt $($t+1) failed: $_\"; Start-Sleep -Seconds 3 } }; "
+        "if(-not $started){ L 'RELAUNCH FAILED - please launch the app yourself' }"
     )
 
 
