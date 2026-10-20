@@ -13,8 +13,13 @@ import hashlib
 
 from luxottica import model_candidates  # same model-code reader as the EL source
 
-IMAGE = ("https://img.edel-optics.com/eoProductsGlassesSunglasses/2000/nobg/"
+IMAGE = ("https://img.edel-optics.com/{segment}/2000/nobg/"
          "{brand}-{model}-{colour}.jpg")
+
+# The shop keeps sunglasses and optical frames on separate CDN paths, and a
+# name does not reliably say which it is (a model number hints, but "BE2443"
+# style codes are not a rule we can trust), so both are tried.
+SEGMENTS = ("eoProductsGlassesSunglasses", "eoProductsGlassesPrescription")
 
 # Anything smaller than this is a placeholder or an error page, never a photo.
 MIN_PHOTO_BYTES = 20000
@@ -51,14 +56,34 @@ def name_parts(name):
     return "-".join(tokens[:at]), model, tokens[-1].replace("/", "-")
 
 
-def image_url(brand, model, colour):
-    return IMAGE.format(brand=brand, model=model, colour=colour)
+def image_url(brand, model, colour, segment=SEGMENTS[0]):
+    return IMAGE.format(segment=segment, brand=brand, model=model, colour=colour)
+
+
+def brand_variants(brand):
+    """Spellings the shop might use — it writes "&" as "and"."""
+    out = [brand]
+    spelled = brand.replace("-&-", "-and-").replace("&", "and")
+    if spelled != brand:
+        out.append(spelled)
+    return out
+
+
+def candidate_urls(name):
+    """Every URL worth trying for a product name, most likely first."""
+    parts = name_parts(name)
+    if not parts:
+        return []
+    brand, model, colour = parts
+    return [image_url(b, model, colour, segment)
+            for segment in SEGMENTS
+            for b in brand_variants(brand)]
 
 
 def url_for_name(name):
-    """The image URL for a product name, or None if the name can't be read."""
-    parts = name_parts(name)
-    return image_url(*parts) if parts else None
+    """The first candidate image URL, or None if the name can't be read."""
+    urls = candidate_urls(name)
+    return urls[0] if urls else None
 
 
 def is_placeholder(data, known=None):
@@ -98,21 +123,43 @@ def to_jpeg(data):
 
 
 def resolve(name, fetch=None):
-    """Return (bytes, ".jpg") for a product name, or None when not stocked."""
-    url = url_for_name(name)
-    if not url:
+    """Return (bytes, ".jpg") for a product name, or None when not stocked.
+
+    Tries each candidate path/brand spelling until one answers with a real
+    photo. A batch is usually all one product type, so the path that last
+    worked is tried first and most rows cost a single request.
+    """
+    global _preferred
+    urls = candidate_urls(name)
+    if not urls:
         return None
+    if _preferred:
+        urls.sort(key=lambda u: _preferred not in u)
     download = fetch or _download
-    data = download(url)
-    if not data:
-        return None
-    if len(data) < MIN_PHOTO_BYTES:
-        # Too small to be a photo: remember it so the rest of the run is cheap.
-        _PLACEHOLDERS.add(hashlib.md5(data).hexdigest())
-        return None
-    if hashlib.md5(data).hexdigest() in _PLACEHOLDERS:
-        return None
-    return to_jpeg(data), ".jpg"
+    for url in urls:
+        data = download(url)
+        if not data:
+            continue
+        if len(data) < MIN_PHOTO_BYTES:
+            # Too small to be a photo: remember it so the rest of the run is cheap.
+            _PLACEHOLDERS.add(hashlib.md5(data).hexdigest())
+            continue
+        if hashlib.md5(data).hexdigest() in _PLACEHOLDERS:
+            continue
+        _preferred = next((s for s in SEGMENTS if s in url), _preferred)
+        return to_jpeg(data), ".jpg"
+    return None
+
+
+# The CDN path that last returned a real photo, tried first for the next row.
+_preferred = ""
+
+
+def reset():
+    """Forget the learned placeholders and preferred path (used by tests)."""
+    global _preferred
+    _PLACEHOLDERS.clear()
+    _preferred = ""
 
 
 def _download(url, timeout=25):
