@@ -23,6 +23,7 @@ _STATUS_TEXT = {
     "barcode": "✅ barcode",
     "luxottica": "✅ EssilorLuxottica",
     "alpina": "✅ Alpina",
+    "edel": "✅ Edel-Optics",
     "safilo": "✅ Safilo",
     "url": "✅ manual (url)",
     "manual": "✅ manual",
@@ -35,6 +36,7 @@ _SOURCES = [
     ("barcode", "🔎 Run barcode lookup"),
     ("luxottica", "🕶 Match EssilorLuxottica"),
     ("alpina", "🏔 Match Alpina"),
+    ("edel", "👓 Match Edel-Optics"),
     ("safilo", "🅢 Match Safilo (login window)"),
 ]
 

@@ -41,6 +41,11 @@ Output: `dist\GlassesImageDownloader.exe`. Unsigned, so SmartScreen warns once.
   - EssilorLuxottica → catalogue match (headless Edge; auto-login if credentials
     are saved in ⚙️ Settings / Windows Credential Manager)
   - Alpina → alpina-sports.com (public, headless Edge)
+  - Edel-Optics → img.edel-optics.com (public, **plain HTTP, no browser**). The
+    URL is built from the name: `.../2000/nobg/<Brand>-<MODEL>-<COLOUR>.jpg`
+    with `/` → `-`. Two traps: an unstocked frame answers **200 with a shared
+    ~12 kB placeholder** (not a 404), and the CDN serves **WebP while labelling
+    it `image/jpeg`**, so the bytes are sniffed and converted with Pillow.
   - Safilo → youandsafilo.com (opens a visible login window; session can't persist)
 - **All browser work uses the SYSTEM Edge** (`channel="msedge"`), so the .exe
   needs no downloaded/bundled Chromium — only the Playwright driver, bundled via

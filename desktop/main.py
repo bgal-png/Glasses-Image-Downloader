@@ -303,6 +303,19 @@ def _sourcetest() -> int:
         print(f"  FAIL  alpina: {error.__class__.__name__}: {error}")
         problems.append("alpina")
 
+    # Edel needs no browser, but it does need Pillow to turn the CDN's WebP
+    # into JPEG — and a missing Pillow would only show up in a frozen build.
+    try:
+        out = pipeline.run_edel([{"barcode": "", "name": "Ray-Ban RB3793 001/31"}], [0])
+        report("edel", out.get(0))
+        data = (out.get(0) or {}).get("image", b"")
+        if data and data[:2] != b"\xff\xd8":
+            print("  FAIL  edel: not JPEG — Pillow missing from the build?")
+            problems.append("edel (webp not converted)")
+    except Exception as error:
+        print(f"  FAIL  edel: {error.__class__.__name__}: {error}")
+        problems.append("edel")
+
     if problems:
         print("SOURCETEST FAILED — " + ", ".join(problems))
         return 1

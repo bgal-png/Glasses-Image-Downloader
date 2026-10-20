@@ -22,6 +22,10 @@ then save them to a folder.</p>
     <li><b>EssilorLuxottica</b> — Ray-Ban, Oakley, Persol, Prada, Miu Miu…
         (auto-logs in if you saved credentials in ⚙️ Settings).</li>
     <li><b>Alpina</b> — public, no login.</li>
+    <li><b>Edel-Optics</b> — public, no login, and the fastest source: the
+        picture is read straight from the shop's image server using the brand,
+        model code and colour in the name, so no page is opened at all. A frame
+        the shop does not stock is simply reported as not found.</li>
     <li><b>Safilo</b> — Hugo Boss, Marc Jacobs, Carrera… opens a login window.</li>
   </ul>
   You can run several sources; each only fills frames that don't have an image yet.</li>

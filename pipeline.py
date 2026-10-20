@@ -17,6 +17,7 @@ from fetcher import make_browser, fetch_image, download_url_bytes
 import luxottica
 import alpina
 import safilo
+import edel
 
 
 def _names_todo(records, images):
@@ -95,6 +96,19 @@ def run_luxottica(records, todo, progress=None):
     return out
 
 
+def run_edel(records, todo, progress=None):
+    """edel-optics.cz — one plain HTTP GET per row, no browser and no login."""
+    out = {}
+    todo = [i for i in todo if records[i].get("name")]
+    for n, i in enumerate(todo):
+        if progress:
+            progress((n + 1) / max(len(todo), 1), f"Edel-Optics {n + 1}/{len(todo)}")
+        dl = edel.resolve(records[i]["name"])
+        if dl:
+            out[i] = {"image": dl[0], "ext": dl[1]}
+    return out
+
+
 def run_safilo(records, todo, progress=None):
     """Safilo (youandsafilo.com) — opens a VISIBLE window; user logs in once."""
     out = {}
@@ -115,6 +129,7 @@ RUNNERS = {
     "barcode": run_barcode,
     "luxottica": run_luxottica,
     "alpina": run_alpina,
+    "edel": run_edel,
     "safilo": run_safilo,
 }
 
