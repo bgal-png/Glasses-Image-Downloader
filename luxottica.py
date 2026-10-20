@@ -320,6 +320,37 @@ def clear_credentials():
             pass
 
 
+# The B2C page reports a rejected credential in the page body rather than in
+# the URL or an HTTP status, so a failed sign-in otherwise looks identical to
+# "still loading" — which is how a stale password came to be reported as
+# "the catalogue has no such model".
+_LOGIN_ERRORS = (
+    "invalid username or password",
+    "your account has been locked",
+    "account is locked",
+    "too many",
+)
+
+LAST_LOGIN_ERROR = ""
+
+
+def login_error_in(body_text):
+    """Return the portal's own sign-in error line from a page body, or ""."""
+    lowered = (body_text or "").lower()
+    for marker in _LOGIN_ERRORS:
+        if marker in lowered:
+            for line in (body_text or "").splitlines():
+                if marker in line.lower():
+                    return line.strip()
+            return marker
+    return ""
+
+
+def last_login_error():
+    """Why the most recent automatic sign-in failed ("" if it did not)."""
+    return LAST_LOGIN_ERROR
+
+
 def _auto_login(ctx, username, password):
     """Drive the Azure AD B2C login (username step -> password step). Returns bool.
 
@@ -344,11 +375,23 @@ def _auto_login(ctx, username, password):
         page.wait_for_timeout(3000)
         return is_logged_in(ctx)
     except Exception:
+        _record_login_error(page)
         return False
+
+
+def _record_login_error(page):
+    """Store the portal's complaint so the UI can repeat it to the user."""
+    global LAST_LOGIN_ERROR
+    try:
+        LAST_LOGIN_ERROR = login_error_in(page.inner_text("body"))
+    except Exception:
+        LAST_LOGIN_ERROR = ""
 
 
 def ensure_logged_in(ctx):
     """True if already logged in, or if auto-login with stored credentials works."""
+    global LAST_LOGIN_ERROR
+    LAST_LOGIN_ERROR = ""
     if is_logged_in(ctx):
         return True
     creds = get_credentials()

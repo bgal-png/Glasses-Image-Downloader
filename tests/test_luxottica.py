@@ -109,3 +109,20 @@ def test_match_color_any_finds_a_non_adjacent_colour():
 def test_match_color_any_returns_none_when_nothing_matches():
     variants = [{"colorCode": "807", "image": "a"}]
     assert luxottica.match_color_any(variants, "No codes in here") is None
+
+
+# --- Sign-in failures must be reported, not swallowed ---
+
+def test_login_error_is_detected_and_quoted():
+    """A stale password otherwise looks exactly like "catalogue has no models"."""
+    body = "MyEssilorLuxottica\nLogin\n\nInvalid username or password.\n\nUsername"
+    assert luxottica.login_error_in(body) == "Invalid username or password."
+
+
+def test_login_error_detects_a_locked_account():
+    assert "locked" in luxottica.login_error_in("Your account has been locked.").lower()
+
+
+def test_login_error_empty_for_a_normal_page():
+    assert luxottica.login_error_in("Obruby (4677) Filtrovat podle Kolekce") == ""
+    assert luxottica.login_error_in("") == ""

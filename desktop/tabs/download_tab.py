@@ -159,7 +159,7 @@ class DownloadTab(BaseTab):
         def done(outcomes):
             self._set_running(False)
             if outcomes.get("_needs_login"):
-                self._handle_needs_login(source)
+                self._handle_needs_login(source, outcomes.get("_reason") or "")
                 return
             before = len(self.session.images)
             self.session.apply_source(source, outcomes)
@@ -179,11 +179,16 @@ class DownloadTab(BaseTab):
         worker.start()
         self._worker = worker
 
-    def _handle_needs_login(self, source: str) -> None:
+    def _handle_needs_login(self, source: str, reason: str = "") -> None:
         if source == "luxottica":
+            # A rejected password used to surface as "no models found", which
+            # reads like a catalogue gap — so say what the portal actually said.
+            detail = (f"The portal said: “{reason}”.\n\nThe saved password is "
+                      "probably out of date — update it in ⚙️ Settings.\n\n"
+                      if reason else "Not logged in. ")
             answer = QMessageBox.question(
                 self, "EssilorLuxottica login",
-                "Not logged in. Set a username/password in ⚙️ Settings for automatic "
+                detail + "Set a username/password in ⚙️ Settings for automatic "
                 "login, or open a login window now?",
                 QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
             if answer != QMessageBox.Yes:

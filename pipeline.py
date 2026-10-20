@@ -59,7 +59,7 @@ def run_luxottica(records, todo, progress=None):
     todo = [i for i in todo if records[i].get("name")]
     with luxottica.open_context(headless=True) as ctx:
         if not luxottica.ensure_logged_in(ctx):
-            return {"_needs_login": True}
+            return {"_needs_login": True, "_reason": luxottica.last_login_error()}
         if progress:
             progress(0.0, "Loading EssilorLuxottica catalogue…")
         index = luxottica.load_or_build_index(
