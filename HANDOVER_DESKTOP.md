@@ -42,8 +42,13 @@ Output: `dist\GlassesImageDownloader.exe`. Unsigned, so SmartScreen warns once.
     are saved in ⚙️ Settings / Windows Credential Manager)
   - Alpina → alpina-sports.com (public, headless Edge)
   - Edel-Optics → img.edel-optics.com (public, **plain HTTP, no browser**). The
-    URL is built from the name: `.../2000/nobg/<Brand>-<MODEL>-<COLOUR>.jpg`
-    with `/` → `-`. **Two CDN segments**: `eoProductsGlassesSunglasses` and `eoProductsGlassesPrescription` (optical) — both are tried, the one that last worked first. The brand spells `&` as `and` (`Dolce-and-Gabbana`). Two traps: an unstocked frame answers **200 with a shared
+    file name is the WHOLE product name with spaces and `/` turned into `-` and
+    `&` spelled `and`: "Polaroid PLD 4199/S/X 8CQ/XW" →
+    `Polaroid-PLD-4199-S-X-8CQ-XW.jpg`. Do NOT parse out brand/model/colour —
+    that misses every brand whose code holds a slash or space (all of Polaroid).
+    **Two CDN segments**, `eoProductsGlassesSunglasses` and
+    `eoProductsGlassesPrescription` (optical); both are tried, the one that last
+    worked first. Two traps: an unstocked frame answers **200 with a shared
     ~12 kB placeholder** (not a 404), and the CDN serves **WebP while labelling
     it `image/jpeg`**, so the bytes are sniffed and converted with Pillow.
   - Safilo → youandsafilo.com (opens a visible login window; session can't persist)
