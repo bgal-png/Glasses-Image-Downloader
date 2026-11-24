@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import os
 
-from fetcher import download_url_bytes
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QPixmap
+from fetcher import download_url_bytes, google_barcode_query, google_barcode_url
+from PySide6.QtCore import Qt, QTimer, QUrl
+from PySide6.QtGui import QDesktopServices, QPixmap
 from PySide6.QtWidgets import (
     QApplication, QDialogButtonBox, QDialog, QFileDialog, QGridLayout, QGroupBox,
     QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QScrollArea,
@@ -54,6 +54,15 @@ class FillDialog(QDialog):
             button.clicked.connect(
                 lambda _=False, v=value, b=button, t=label: self._copy(v, b, t))
             copy_row.addWidget(button)
+        barcode = rec.get("barcode") or ""
+        google = QPushButton("🔎 Google barcode")
+        google.setEnabled(bool(barcode))
+        if barcode:
+            google.setToolTip(f"Search Google for {google_barcode_query(barcode)}"
+                              " (leading 0 dropped)")
+        google.clicked.connect(
+            lambda: QDesktopServices.openUrl(QUrl(google_barcode_url(barcode))))
+        copy_row.addWidget(google)
         copy_row.addStretch(1)
         layout.addLayout(copy_row)
 

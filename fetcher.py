@@ -188,6 +188,17 @@ def search_links(name):
     }
 
 
+def google_barcode_query(barcode):
+    """Barcode as typed into Google: one leading 0 dropped (EAN-13 → UPC-12)."""
+    code = str(barcode).strip()
+    return code[1:] if code.startswith("0") else code
+
+
+def google_barcode_url(barcode):
+    """Google web search for the barcode (pure, no network)."""
+    return f"https://www.google.com/search?q={quote(google_barcode_query(barcode))}"
+
+
 def download_url_bytes(url):
     """Download a direct image URL the user pasted.
 
