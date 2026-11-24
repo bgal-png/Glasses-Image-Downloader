@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 import re
 
-from fetcher import make_browser, fetch_image, download_url_bytes
+from fetcher import make_browser, fetch_image, download_url_bytes, google_barcode_query
 import luxottica
 import alpina
 import safilo
@@ -33,7 +33,11 @@ def run_barcode(records, todo, delay=1.5, progress=None):
         for n, i in enumerate(bc_todo):
             if progress:
                 progress((n + 1) / max(len(bc_todo), 1), f"Barcode {n + 1}/{len(bc_todo)}")
-            r = fetch_image(browser, records[i]["barcode"], delay=delay)
+            code = records[i]["barcode"]
+            r = fetch_image(browser, code, delay=delay)
+            # EAN-13 with a leading 0 is often listed under its 12-digit UPC.
+            if r.status != "ok" and code.startswith("0"):
+                r = fetch_image(browser, google_barcode_query(code), delay=delay)
             if r.status == "ok" and r.image_bytes:
                 out[i] = {"image": r.image_bytes, "ext": r.extension}
     return out
